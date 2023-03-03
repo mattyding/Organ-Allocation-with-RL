@@ -6,7 +6,7 @@ from scipy.stats import skewnorm
 class Person:
     """
     match_vec: embedding of organ characteristics (organs are similar if their vectors are close together)
-    condition_vec:
+    condition_vec: embedding of organ condition
     """
 
     def __init__(self, id, age, race, expiry, match_vec, condition_vec, donor):
@@ -21,7 +21,7 @@ class Person:
 
 class Simulator:
     """
-    Class contains the for running simulation.
+    Contains the code for running a simulation.
     """
 
     def __init__(self):
@@ -36,20 +36,20 @@ class Simulator:
             min(
                 max(
                     20,
-                    np.random.normal(50, 10),  # mean age is 50  # sd is 10
+                    np.random.normal(50, 10),  # mean age is 50, standard deviation is 10
                 ),
                 80,
             )
         )
 
-        race = random.randint(0, 4)  # generates race from 0 to 3
-
+        race = random.randint(0, 4)  # generates race from 0 to 4 inclusive
+        
         expiration = int(
             max(
                 1,
                 np.random.normal(
-                    5,  # average donor organ survival length is 5 units of time
-                    1,  # down to 2 or up to 8 ish
+                    5,  # average survival length is 5 units of time
+                    1,  # range between around 2 units to 8 units
                 ),
             )
         )
@@ -67,19 +67,19 @@ class Simulator:
         self.nonce += 1
         age = int(
             min(
-                max(20, -np.random.gamma(10, 1) + 80),  # idk wtf these numbers do
+                max(20, -np.random.gamma(10, 1) + 80),  # mean of 70, standard deviation of sqrt(10)
                 80,
             )
         )
 
-        race = random.randint(0, 4)  # generates race from 0 to 3
+        race = random.randint(0, 4)  # generates race from 0 to 4 inclusive
 
         expiration = int(
             max(
-                1,
+                1, # can't have lower than 1 unit of expiration
                 np.random.normal(
-                    5,  # average donor organ survival length is 5 units of time
-                    1,  # down to 2 or up to 8 ish
+                    5,  # average survival length is 5 units of time
+                    1,  # range between around 2 units to 8 units
                 ),
             )
         )
