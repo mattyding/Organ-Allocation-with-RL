@@ -1,4 +1,5 @@
-import random
+import sys
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -49,7 +50,7 @@ class Simulator:
             )
         )
 
-        race = random.randint(0, 4)  # generates race from 0 to 4 inclusive
+        race = np.random.randint(0, 4)  # generates race from 0 to 4 inclusive
 
         expiration = int(
             max(
@@ -81,7 +82,7 @@ class Simulator:
             )
         )
 
-        race = random.randint(0, 4)  # generates race from 0 to 4 inclusive
+        race = np.random.randint(0, 4)  # generates race from 0 to 4 inclusive
 
         expiration = int(
             max(
@@ -103,6 +104,7 @@ class Simulator:
 
     def decrement_expiration(self):
         score = 0
+        total_deaths = 0
         for s in [self.donor_pool, self.recipient_pool]:
             ppl_to_remove = []
             for person in s:
@@ -110,11 +112,11 @@ class Simulator:
                 if person.expiry == 0:
                     ppl_to_remove.append(person)
                     score += person.age - max(80, person.age)
-                    if self.verbose:
-                        print(f"Person {person.id} died at age {person.age}")
+            total_deaths += len(ppl_to_remove)
             for person in ppl_to_remove:
                 s.remove(person)
         if self.verbose:
+            print(f"Total deaths: {total_deaths}")
             print(f"Loss from deaths: {score}")
         return score
 
@@ -133,10 +135,7 @@ class Simulator:
         )
         # fitness score (prob % scaled by mismatch in donors/recipients)
         fitness = (
-            prob_succ[0]
-            * (1 + len(self.recipient_pool))
-            / (1 + len(self.donor_pool))
-            * 100
+            prob_succ[0] * (1 + len(self.recipient_pool)) / (1 + len(self.donor_pool))
         )
         return fitness
 
@@ -212,6 +211,7 @@ class MLPAgent:
             nn.ReLU(),
             nn.Linear(10, 1),
         )
+        self.sigmoid = nn.Sigmoid()
         self.loss = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
         self.last_prediction = None
@@ -238,13 +238,18 @@ class MLPAgent:
                         dtype=torch.float,
                     )
                 )
+                reward = (
+                    self.sigmoid(reward) * 100
+                )  # scale function output into range (0, 100)
                 if best_reward is None or reward.item() > best_reward.item():
                     best_reward = reward.clone()
                     best_pairing = (donor, recipient)
 
         self.last_prediction = best_reward
         if self.threshold is None:
-            self.threshold = best_reward.item()
+            self.threshold = (
+                best_reward.item() / 100
+            )  # init threshold to some low value
         if best_reward.item() < self.threshold:
             return (-1, -1)
         return best_pairing
@@ -258,10 +263,13 @@ class MLPAgent:
             )
             loss.backward(retain_graph=True)
             self.optimizer.step()
+            # update threshold based on rewards
+            # positive matches increase threshold; negative matches do not change
+            self.threshold = self.threshold + self.alpha * max(reward, 0)
+        else:
+            # negative rewards (lots of deaths) decrease
+            self.threshold = self.threshold - self.alpha * reward
 
-        # update threshold based on rewards
-        # negative rewards (lots of deaths) decrease
-        self.threshold = max(self.threshold, self.threshold + self.alpha * reward)
         self.threshold_history.append(self.threshold)
 
 
